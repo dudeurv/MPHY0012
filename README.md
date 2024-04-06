@@ -1,16 +1,60 @@
 # MPHY0012: PitSAM
 
-## PitSAM: Low-Rank Adaptation of SAM for Pituitary Adenoma Segmentation
+# PitSAM: Low-Rank Adaptation of SAM for Pituitary Adenoma Segmentation
 
-**PitSAM** represents a methodology for adapting the **Segment Anything Model (SAM)** to the task of segmenting pituitary adenomas from MRI scans. Employing the **Low-Rank Adaptation (LoRA)** technique, PitSAM fine-tunes the SAM model with a minimal increase in trainable parameters, facilitating an efficient transition to the medical imaging sphere.
+This repository contains the code for PitSAM (Pituitary Segmentation Adaptation Model), a novel approach for adapting the Segment Anything Model (SAM) to the task of pituitary adenoma segmentation from magnetic resonance imaging (MRI) scans. PitSAM leverages Low-Rank Adaptation (LoRA) techniques to fine-tune the SAM model with minimal additional trainable parameters, enabling efficient adaptation to the medical imaging domain.
 
-### Overview
+## Overview
 
-Accurate segmentation of pituitary adenomas from MRI scans is a cornerstone of effective clinical decision-making and treatment planning. Traditional machine learning strategies often fall short, challenged by the scarcity of labeled medical data and the distinctive properties of MRI scans. PitSAM surmounts these obstacles by tailoring the robust SAM model to the pituitary adenoma segmentation task. This adaptation preserves the foundational model's pre-trained knowledge and capabilities, ensuring a targeted and effective segmentation approach.
+Accurate segmentation of pituitary adenomas from MRI scans is crucial for clinical decision-making and treatment planning. However, the scarcity of labeled medical data and the unique characteristics of MRI data pose significant challenges for traditional machine learning approaches. PitSAM addresses these challenges by adapting the powerful Segment Anything Model (SAM) to the specific task of pituitary adenoma segmentation, while maintaining the pre-trained knowledge and capabilities of the foundation model.
 
-### Key Features
+Key features of PitSAM:
 
-- **Gated Attention Mechanism:** A gated attention mechanism is integrated within the LoRA layers. 
+1. **Low-Rank Adaptation (LoRA)**: PitSAM incorporates LoRA into the SAM model, enabling efficient fine-tuning with minimal additional trainable parameters.
+2. **Gated Attention**: A novel gated attention mechanism is integrated into the LoRA layers, allowing PitSAM to capture domain-specific features and spatial information crucial for accurate pituitary adenoma segmentation.
+3. **Multi-View Learning**: PitSAM leverages MRI data from all three anatomical planes (axial, coronal, and sagittal) during training, enriching the model's dataset and improving learning outcomes.
 
-- **Multi-View Learning:** Exploiting MRI data from all three anatomical planes (axial, coronal, and sagittal), PitSAM enriches its training dataset. 
+## Installation
 
+1. Clone this repository:
+
+```
+git clone https://github.com/dudeurv/PitSAM_MPHY0012.git
+```
+
+2. Install the required dependencies by running the provided script:
+
+```
+bash sequential_install.sh
+```
+
+3. Download the pre-trained Segment Anything Model (SAM) weights from the official repository: [https://github.com/facebookresearch/segment-anything](https://github.com/facebookresearch/segment-anything)
+
+## Usage
+
+1. Prepare your dataset following the required format.
+2. Run the training script:
+
+```
+python training_with_inference.py
+```
+
+The main components of the code are:
+
+- `dataloader.py`: Contains the custom data loader for loading and preprocessing the MRI data.
+- `sam_lora_image_encoder.py`: Defines the PitSAM architecture, incorporating the gated attention mechanism into the LoRA layers of the SAM image encoder.
+- `sam_lora_image_encoder_mask_decoder.py`: Combines the PitSAM image encoder with the mask decoder from SAM.
+- `utils.py`: Utility functions for data processing, visualization, and evaluation.
+
+
+## Results
+
+PitSAM achieved state-of-the-art performance on our private pituitary adenoma segmentation dataset, with a Dice Similarity Coefficient (DSC) of 98.8% for tumor segmentation, 87.9% for internal carotid artery segmentation, and an overall mean DSC of 93.4%. These results were obtained with only 4.146 million trainable parameters, which is just 4.54% of the model's total parameters.
+
+## Contributing
+
+We welcome contributions to improve PitSAM and extend its capabilities. Please feel free to submit issues or pull requests to this repository.
+
+## Acknowledgments
+
+We would like to thank the National Hospital for Neurology and Neurosurgery for providing the pituitary adenoma MRI dataset used in this study.
