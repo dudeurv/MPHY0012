@@ -1,20 +1,19 @@
+# Essential library imports for file operations, image and numerical processing.
 import os
 import cv2
-
 import sys
-from tqdm import tqdm
+from tqdm import tqdm  # For displaying progress bars during operations
 import logging
-import numpy as np
-import argparse
+import numpy as np  # Fundamental package for scientific computing
+import argparse  # For parsing command-line arguments
 import random
-import numpy as np
-import torch
+import torch  # PyTorch library for deep learning models
 from torch.utils.data import DataLoader, ConcatDataset
 import torch.backends.cudnn as cudnn
 from importlib import import_module
-from segment_anything import sam_model_registry
+from segment_anything import sam_model_registry  # Custom model registry for segmentation models
 from datasets.dataset_synapse import Synapse_dataset
-from icecream import ic
+from icecream import ic  # Debugging library
 from medpy import metric
 from scipy.ndimage import zoom
 import torch.nn as nn
@@ -23,15 +22,16 @@ import torch.nn.functional as F
 import imageio
 from einops import repeat
 
-from torch.nn.modules.loss import CrossEntropyLoss
-from utils import DiceLoss
+from torch.nn.modules.loss import CrossEntropyLoss  # Loss functions
+from utils import DiceLoss  # Custom Dice loss utility for segmentation tasks
 import torch.optim as optim
 from collections import Counter
-from SAMed_Endo_dataloader import EndonasalDataset
+from SAMed_Endo_dataloader import EndonasalDataset  # Custom data loader
 
-import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt  # For plotting
 import numpy as np
 
+# Function to calculate confusion matrix from prediction and ground truth arrays
 def calculate_confusion_matrix_from_arrays(prediction, ground_truth, nr_labels):
     replace_indices = np.vstack((
         ground_truth.flatten(),
@@ -45,6 +45,7 @@ def calculate_confusion_matrix_from_arrays(prediction, ground_truth, nr_labels):
     confusion_matrix = confusion_matrix.astype(np.uint32)
     return confusion_matrix
 
+# Function to calculate the Dice coefficient for evaluating segmentation performance
 def calculate_dice(confusion_matrix):
     dices = []
     for index in range(confusion_matrix.shape[0]):
@@ -59,6 +60,7 @@ def calculate_dice(confusion_matrix):
         dices.append(dice)
     return dices
 
+# Performs inference for each epoch, calculating loss and dice coefficient, and plots results
 def inference_per_epoch(model, testloader, ce_loss, dice_loss, multimask_output=True, args=None):
     model.eval()
     fig, axs = plt.subplots(len(testloader), 3, figsize=(1*3, len(testloader)*1), subplot_kw=dict(xticks=[],yticks=[]))
@@ -89,6 +91,8 @@ def inference_per_epoch(model, testloader, ce_loss, dice_loss, multimask_output=
                     for cls, dice in enumerate(calculate_dice(confusion_matrix))}
 
     return np.mean(loss_per_epoch), np.mean(dice_per_epoch), dices_per_class
+
+# Seeds the random number generators for reproducibility
 def seed_everything(seed=42):
     cudnn.benchmark = False
     cudnn.deterministic = True
@@ -96,7 +100,8 @@ def seed_everything(seed=42):
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
-
+    
+# Calculates the combined loss for a batch using both CE loss and Dice loss
 def calc_loss(outputs, low_res_label_batch, ce_loss, dice_loss, dice_weight:float=0.8):
     low_res_logits = outputs['low_res_logits']
     loss_ce = ce_loss(low_res_logits, low_res_label_batch[:].long())
@@ -104,30 +109,24 @@ def calc_loss(outputs, low_res_label_batch, ce_loss, dice_loss, dice_weight:floa
     loss = (1 - dice_weight) * loss_ce + dice_weight * loss_dice
     return loss, loss_ce, loss_dice
 
-
+# Performs training for one epoch, updating the model with the loss gradient
 def training_per_epoch(model, trainloader, optimizer, iter_num, ce_loss, dice_loss, multimask_output=True, args=None):
     model.train()
     loss_all = []
-
     for i_batch, sampled_batch in enumerate(trainloader):
         image_batch, label_batch, low_res_label_batch = sampled_batch['image'],sampled_batch['label'], sampled_batch['low_res_label']
         image_batch, label_batch, low_res_label_batch = image_batch.to(device, dtype=torch.float32), label_batch.to(device, dtype=torch.long), low_res_label_batch.to(device, dtype=torch.long)
-  
         outputs = model(image_batch, multimask_output, args.img_size)
         loss, loss_ce, loss_dice = calc_loss(outputs, low_res_label_batch, ce_loss, dice_loss)
         optimizer.zero_grad()
         loss.backward()
-
         optimizer.step()
         # Update learning rate and increment iteration count
-        loss_all.append(loss.item())
-       
-        iter_num = iter_num + 1
-        
-  		
+        loss_all.append(loss.item())    
+        iter_num = iter_num + 1     		
     return np.mean(loss_all)
 
-
+# Evaluates the model on the test dataset for one epoch
 def test_per_epoch(model, testloader, ce_loss, dice_loss, multimask_output=True, args=None):
     model.eval()
     loss_per_epoch, dice_per_epoch = [], []
@@ -142,9 +141,9 @@ def test_per_epoch(model, testloader, ce_loss, dice_loss, multimask_output=True,
             dice_per_epoch.append(1-loss_dice.item())
     return np.mean(loss_per_epoch), np.mean(dice_per_epoch)
 
-
-
+# Main function setting up the model, training, and evaluation
 def main():
+    # Setting up command-line argument parsing
     parser = argparse.ArgumentParser()
     # Add new arguments
     parser.add_argument('--batch_key', type=str, default='low_res_label_batch', help='Key for accessing label batch')
@@ -185,89 +184,102 @@ def main():
     parser.add_argument('--max_epochs', type=int, default=80, help='maximum epoch number to train')
     parser.add_argument('--max_iterations', type=int, default=30000, help='maximum epoch number to train')
 
-    if 'ipykernel' in sys.modules:
-        args = parser.parse_args([])
-    else:
-        args = parser.parse_args()
+# Conditional import for argument parsing depending on execution context (Jupyter notebook or standard Python environment)
+if 'ipykernel' in sys.modules:
+    args = parser.parse_args([])
+else:
+    args = parser.parse_args()
 
-    args.output_dir = 'results'
-    args.ckpt = 'sam_vit_b_01ec64.pth'
-    args.lora_ckpt = 'results/' + args.output_file
-    os.makedirs(args.output_dir, exist_ok = True)
+# Setup directories for saving outputs and load model checkpoints
+args.output_dir = 'results'
+args.ckpt = 'sam_vit_b_01ec64.pth'
+args.lora_ckpt = 'results/' + args.output_file
+os.makedirs(args.output_dir, exist_ok=True)  # Create output directory if it doesn't exist
 
-    sam, img_embedding_size = sam_model_registry[args.vit_name](image_size=args.img_size,
-                                                                    num_classes=args.num_classes,
-                                                                    checkpoint=args.ckpt, pixel_mean=[0, 0, 0],
-                                                                    pixel_std=[1, 1, 1])
+# Initialize the segmentation model with configurations from command-line arguments
+sam, img_embedding_size = sam_model_registry[args.vit_name](
+    image_size=args.img_size,
+    num_classes=args.num_classes,
+    checkpoint=args.ckpt,
+    pixel_mean=[0, 0, 0],
+    pixel_std=[1, 1, 1]
+)
 
-    pkg = import_module(args.module)
+# Dynamically import the model class based on the command-line argument
+pkg = import_module(args.module)
 
-    if args.class_type == "LoRA_Sam":
-        net = pkg.LoRA_Sam(sam, args.rank).cuda()
-    elif args.class_type == "LoRA_Sam_v0":
-        net = pkg.LoRA_Sam_v0(sam, args.rank).cuda()
-    elif args.class_type == "LoRA_Sam_v0_v0":
-        net = pkg.LoRA_Sam_v0_v0(sam, args.rank).cuda()
-    elif args.class_type == "LoRA_Sam_v0_v1":
-        net = pkg.LoRA_Sam_v0_v1(sam, args.rank).cuda()
-    elif args.class_type == "LoRA_Sam_v0_v2":
-        net = pkg.LoRA_Sam_v0_v2(sam, args.rank).cuda()
-    else:
-        print("wrong class given")
+# Instantiate the model object based on the specified class type
+args.class_type == "LoRA_Sam_v0_v2":
+net = pkg.LoRA_Sam_v0_v2(sam, args.rank).cuda()
 
-    # net.load_lora_parameters(args.lora_ckpt)
-    multimask_output = True if args.num_classes > 1 else False
-    train_dataset = EndonasalDataset(root=(args.data_path+'/Train'), low_res=128, isTrain=True)
-    test_dataset = EndonasalDataset(root=(args.data_path+'/Test'), low_res=128)
+# Preparation for multi-class output handling in the model predictions
+multimask_output = True if args.num_classes > 1 else False
 
-    # Initialize DataLoaders for the combined datasets
-    trainloader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=2)
-    testloader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=2)
+# Dataset initialization for training and testing phases
+train_dataset = EndonasalDataset(root=(args.data_path + '/Train'), low_res=128, isTrain=True)
+test_dataset = EndonasalDataset(root=(args.data_path + '/Test'), low_res=128)
 
-    print('Training on:', device, 'train sample size:', len(train_dataset), 'test sample size:', len(test_dataset), 'batch:', args.batch_size)
+# DataLoader setup for batch processing of datasets
+trainloader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=2)
+testloader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=2)
 
-    ce_loss = CrossEntropyLoss()
-    dice_loss = DiceLoss(args.num_classes + 1)
-    b_lr = args.base_lr 
-    optimizer = optim.AdamW(filter(lambda p: p.requires_grad, net.parameters()), lr=b_lr, betas=(0.9, 0.999), weight_decay=0.1)
-    iter_num = 0
+# Display basic setup information
+print('Training on:', device, 'train sample size:', len(train_dataset), 'test sample size:', len(test_dataset), 'batch:', args.batch_size)
 
-    saved_model_path = os.path.join(args.output_dir, args.output_file)
+# Loss functions initialization
+ce_loss = CrossEntropyLoss()
+dice_loss = DiceLoss(args.num_classes + 1)
 
-    best_epoch, best_loss = 0.0, np.inf
-    for epoch in range(args.max_epochs):
-        loss_training = training_per_epoch(net, trainloader, optimizer, iter_num, ce_loss, dice_loss, multimask_output=multimask_output, args=args)
-        loss_testing, dice = test_per_epoch(net, testloader, ce_loss, dice_loss,multimask_output=True, args=args)
+# Optimizer setup with model parameters and specified learning rate
+b_lr = args.base_lr
+optimizer = optim.AdamW(filter(lambda p: p.requires_grad, net.parameters()), lr=b_lr, betas=(0.9, 0.999), weight_decay=0.1)
+iter_num = 0  # Iteration counter
 
-        if loss_testing < best_loss:
-            best_loss = loss_testing
-            best_epoch = epoch
+# Path setup for saving the best model based on validation loss
+saved_model_path = os.path.join(args.output_dir, args.output_file)
 
-            net.save_lora_parameters(saved_model_path)
+# Training and validation loop
+best_epoch, best_loss = 0.0, np.inf
+for epoch in range(args.max_epochs):
+    loss_training = training_per_epoch(net, trainloader, optimizer, iter_num, ce_loss, dice_loss, multimask_output=multimask_output, args=args)
+    loss_testing, dice = test_per_epoch(net, testloader, ce_loss, dice_loss, multimask_output=True, args=args)
 
-        print('--- Epoch {}/{}: Training loss = {:.4f}, Testing: [loss = {:.4f}, dice = {:.4f}], Best loss = {:.4f}, Best epoch = {}, lr = {:.6f}'.\
-    format(epoch, args.max_epochs, loss_training, loss_testing, dice, best_loss, best_epoch, optimizer.param_groups[0]['lr']))
+    # Model checkpointing based on validation loss
+    if loss_testing < best_loss:
+        best_loss = loss_testing
+        best_epoch = epoch
+        net.save_lora_parameters(saved_model_path)  # Save model parameters
 
-    net.load_lora_parameters(saved_model_path)
-    test_dataset_ax = EndonasalDataset(root=('Endonasal_Slices_Voxel/Test'), low_res=128)
-    testloader_ax = DataLoader(test_dataset_ax, batch_size=20, shuffle=False, num_workers=2)
-    test_loss_ax, overall_dic_ax, dices_per_class_ax = inference_per_epoch(net, testloader_ax, ce_loss, dice_loss, multimask_output=True, args=args)
-    dices_per_class_list_ax = np.array(list(dices_per_class_ax.values()))
-    print('Class Wise Dice Axial :', dices_per_class_ax)
-    print('Overall Dice Axial :', np.mean(dices_per_class_list_ax))
+    # Logging training and validation metrics
+    print('--- Epoch {}/{}: Training loss = {:.4f}, Testing: [loss = {:.4f}, dice = {:.4f}], Best loss = {:.4f}, Best epoch = {}, lr = {:.6f}'.format(
+        epoch, args.max_epochs, loss_training, loss_testing, dice, best_loss, best_epoch, optimizer.param_groups[0]['lr']))
 
-    test_dataset_all = EndonasalDataset(root=('content/Endonasal_Slices_All/Test'), low_res=128)
-    testloader_all = DataLoader(test_dataset_all, batch_size=20, shuffle=False, num_workers=2)
-    test_loss_all, overall_dic_all, dices_per_class_all = inference_per_epoch(net, testloader_all, ce_loss, dice_loss, multimask_output=True, args=args)
-    dices_per_class_list_all = np.array(list(dices_per_class_all.values()))
-    print('Class Wise Dice 3-plane :', dices_per_class_all)
-    print('Overall Dice 3-plane :', np.mean(dices_per_class_list_all))
+# Model evaluation on different datasets to assess performance
+net.load_lora_parameters(saved_model_path)  # Load the best model
 
-    test_dataset_public = EndonasalDataset(root=('Public_Slices_Coronal/Test'), low_res=128)
-    testloader_public = DataLoader(test_dataset_public, batch_size=20, shuffle=False, num_workers=2)
-    test_loss_public, overall_dic_public, dices_per_class_public = inference_per_epoch(net, testloader_public, ce_loss, dice_loss, multimask_output=True, args=args)
-    dices_per_class_list_public = np.array(list(dices_per_class_public.values()))
-    print('Class Wise Dice Public :', dices_per_class_public)
+# Evaluation on axial slices
+test_dataset_ax = EndonasalDataset(root=('Endonasal_Slices_Voxel/Test'), low_res=128)
+testloader_ax = DataLoader(test_dataset_ax, batch_size=20, shuffle=False, num_workers=2)
+test_loss_ax, overall_dic_ax, dices_per_class_ax = inference_per_epoch(net, testloader_ax, ce_loss, dice_loss, multimask_output=True, args=args)
+dices_per_class_list_ax = np.array(list(dices_per_class_ax.values()))
+print('Class Wise Dice Axial :', dices_per_class_ax)
+print('Overall Dice Axial :', np.mean(dices_per_class_list_ax))
+
+# Evaluation on all planes
+test_dataset_all = EndonasalDataset(root=('content/Endonasal_Slices_All/Test'), low_res=128)
+testloader_all = DataLoader(test_dataset_all, batch_size=20, shuffle=False, num_workers=2)
+test_loss_all, overall_dic_all, dices_per_class_all = inference_per_epoch(net, testloader_all, ce_loss, dice_loss, multimask_output=True, args=args)
+dices_per_class_list_all = np.array(list(dices_per_class_all.values()))
+print('Class Wise Dice 3-plane :', dices_per_class_all)
+print('Overall Dice 3-plane :', np.mean(dices_per_class_list_all))
+
+# Evaluation on public dataset
+test_dataset_public = EndonasalDataset(root=('Public_Slices_Coronal/Test'), low_res=128)
+testloader_public = DataLoader(test_dataset_public, batch_size=20, shuffle=False, num_workers=2)
+test_loss_public, overall_dic_public, dices_per_class_public = inference_per_epoch(net, testloader_public, ce_loss, dice_loss, multimask_output=True, args=args)
+dices_per_class_list_public = np.array(list(dices_per_class_public.values()))
+print('Class Wise Dice Public :', dices_per_class_public)
+
 
 if __name__ == '__main__':
     seed_everything()
