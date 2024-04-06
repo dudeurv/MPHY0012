@@ -35,11 +35,35 @@ bash sequential_install.sh
 1. Prepare your dataset following the required format.
 2. Run the training script:
 
+
 ```
-python training_with_inference.py
+python training_with_inference.py --data_path /path/to/your/data/folder --output_file /path/to/your/output/file.pth
 ```
 
-The main components of the code are:
+This command will start the training process using the data from the specified `--data_path` and save the trained model checkpoint to the location specified by `--output_file`.
+
+You can also include other arguments to customize the training process. For example:
+
+```
+python training_with_inference.py --data_path /path/to/your/data/folder --output_file /path/to/your/output/file.pth --batch_size 8 --max_epochs 100 --vit_name vit_l --rank 8
+```
+
+This command will use a batch size of 8, train for a maximum of 100 epochs, use the ViT-L model variant, and set the LoRA rank to 8.
+
+Make sure to replace `/path/to/your/data/folder` and `/path/to/your/output/file.pth` with the appropriate paths on your system.
+
+Here's a brief explanation of the arguments used in the example:
+
+- `--data_path`: The path to the directory containing your training data.
+- `--output_file`: The path and filename for the trained model checkpoint.
+- `--batch_size`: The batch size for training (default is 12).
+- `--max_epochs`: The maximum number of epochs to train for (default is 80).
+- `--vit_name`: The name of the ViT model to use (default is `'vit_b'`).
+- `--rank`: The rank for LoRA adaptation (default is 4).
+
+
+
+The main components of the repository are:
 
 - `dataloader.py`: Contains the custom data loader for loading and preprocessing the MRI data.
 - `sam_lora_image_encoder.py`: Defines the PitSAM architecture, incorporating the gated attention mechanism into the LoRA layers of the SAM image encoder.
