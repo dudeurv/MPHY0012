@@ -1,13 +1,16 @@
-# MPHY0012
+# MPHY0012: PitSAM
 
-PitSAM: Low-Rank Adaptation of SAM for Pituitary Adenoma Segmentation
-This repository contains the code for PitSAM (Pituitary Segmentation Adaptation Model), a novel approach for adapting the Segment Anything Model (SAM) to the task of pituitary adenoma segmentation from magnetic resonance imaging (MRI) scans. PitSAM leverages Low-Rank Adaptation (LoRA) techniques to fine-tune the SAM model with minimal additional trainable parameters, enabling efficient adaptation to the medical imaging domain.
+## PitSAM: Low-Rank Adaptation of SAM for Pituitary Adenoma Segmentation
 
-Overview
-Accurate segmentation of pituitary adenomas from MRI scans is crucial for clinical decision-making and treatment planning. However, the scarcity of labeled medical data and the unique characteristics of MRI data pose significant challenges for traditional machine learning approaches. PitSAM addresses these challenges by adapting the powerful Segment Anything Model (SAM) to the specific task of pituitary adenoma segmentation, while maintaining the pre-trained knowledge and capabilities of the foundation model.
+**PitSAM** represents a methodology for adapting the **Segment Anything Model (SAM)** to the task of segmenting pituitary adenomas from MRI scans. Employing the **Low-Rank Adaptation (LoRA)** technique, PitSAM fine-tunes the SAM model with a minimal increase in trainable parameters, facilitating an efficient transition to the medical imaging sphere.
 
-Key features of PitSAM:
+### Overview
 
-Low-Rank Adaptation (LoRA): PitSAM incorporates LoRA into the SAM model, enabling efficient fine-tuning with minimal additional trainable parameters.
-Gated Attention: A novel gated attention mechanism is integrated into the LoRA layers, allowing PitSAM to capture domain-specific features and spatial information crucial for accurate pituitary adenoma segmentation.
-Multi-View Learning: PitSAM leverages MRI data from all three anatomical planes (axial, coronal, and sagittal) during training, enriching the model's dataset and improving learning outcomes.
+Accurate segmentation of pituitary adenomas from MRI scans is a cornerstone of effective clinical decision-making and treatment planning. Traditional machine learning strategies often fall short, challenged by the scarcity of labeled medical data and the distinctive properties of MRI scans. PitSAM surmounts these obstacles by tailoring the robust SAM model to the pituitary adenoma segmentation task. This adaptation preserves the foundational model's pre-trained knowledge and capabilities, ensuring a targeted and effective segmentation approach.
+
+### Key Features
+
+- **Gated Attention Mechanism:** A gated attention mechanism is integrated within the LoRA layers. 
+
+- **Multi-View Learning:** Exploiting MRI data from all three anatomical planes (axial, coronal, and sagittal), PitSAM enriches its training dataset. 
+
