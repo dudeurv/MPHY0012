@@ -11,7 +11,7 @@ Accurate segmentation of pituitary adenomas from MRI scans is crucial for clinic
 Key features of PitSAM:
 
 1. **Low-Rank Adaptation (LoRA)**: PitSAM incorporates LoRA into the SAM model, enabling efficient fine-tuning with minimal additional trainable parameters.
-2. **Gated Attention**: A novel gated attention mechanism is integrated into the LoRA layers, allowing PitSAM to capture domain-specific features and spatial information crucial for accurate pituitary adenoma segmentation.
+2. **Gated Attention**: A gated attention mechanism is integrated into the LoRA layers, allowing PitSAM to capture domain-specific features and spatial information crucial for accurate pituitary adenoma segmentation.
 3. **Multi-View Learning**: PitSAM leverages MRI data from all three anatomical planes (axial, coronal, and sagittal) during training, enriching the model's dataset and improving learning outcomes.
 
 ## Installation
